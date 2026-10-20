@@ -7,7 +7,7 @@
 %endif
 
 Name:           efni
-Version:        0.0.0
+Version:        1.0.0
 Release:        1%{?dist}
 Summary:        Building blocks for protocol-heavy GLib code
 License:        wxWindows
@@ -66,5 +66,5 @@ DESTDIR=%{buildroot} make install
 %{_datadir}/vala/vapi/efni-1.0.vapi
 
 %changelog
-* Tue Oct 20 2026 Ole André Vadla Ravnås <oleavr@frida.re> - 0.0.0-1
+* Tue Oct 20 2026 Ole André Vadla Ravnås <oleavr@frida.re> - 1.0.0-1
 - Initial package
