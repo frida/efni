@@ -22,17 +22,34 @@ if host_os_family != 'windows'
   efni_vala_args += '--pkg=gio-unix-2.0'
 endif
 
+efni_vapi_deps = ['gio-2.0', 'gee-0.8', 'json-glib-1.0']
+
 if host_os == 'macos'
   efni_sources += [
     'xpc.vala',
     'efni-darwin.c',
   ]
-  efni_vala_args += [
-    '--pkg=efni-darwin-gcd',
-    '--pkg=efni-darwin-xpc',
-  ]
+  darwin_vapi_deps = ['efni-darwin-gcd', 'efni-darwin-xpc']
+  foreach dep : darwin_vapi_deps
+    efni_vala_args += '--pkg=' + dep
+  endforeach
+  efni_vapi_deps += darwin_vapi_deps
   install_headers('efni-darwin.h', install_dir: header_install_dir)
+  install_data(
+    local_vapidir / 'efni-darwin-gcd.vapi',
+    local_vapidir / 'efni-darwin-xpc.vapi',
+    install_dir: vapidir,
+  )
 endif
+
+deps_conf = configuration_data()
+deps_conf.set('DEPS', '\n'.join(efni_vapi_deps))
+configure_file(
+  input: 'efni.deps.in',
+  output: f'efni-@api_version@.deps',
+  configuration: deps_conf,
+  install_dir: vapidir,
+)
 
 efni_gir_name = f'Efni-@api_version@.gir'
 
