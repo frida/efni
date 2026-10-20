@@ -42,6 +42,7 @@ efni = library('efni-' + api_version, efni_sources,
   vala_gir: efni_gir_name,
   vala_args: efni_vala_args,
   dependencies: [glib_dep, gobject_dep, gio_dep, gee_dep, json_glib_dep] + platform_deps,
+  soversion: '0',
   install: true,
   install_dir: [true, header_install_dir, vapidir, girdir],
 )
