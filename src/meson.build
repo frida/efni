@@ -80,6 +80,6 @@ pkg.generate(efni,
   version: meson.project_version(),
   description: 'Building blocks for protocol-heavy GLib code',
   requires: ['glib-2.0', 'gobject-2.0', 'gio-2.0', 'gee-0.8', 'json-glib-1.0'],
-  variables: {'girdir': girdir},
+  variables: {'girdir': girdir, 'vapidir': vapidir},
   subdirs: f'efni-@api_version@',
 )
