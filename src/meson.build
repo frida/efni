@@ -61,7 +61,6 @@ pkg.generate(efni,
   name: 'Efni',
   version: meson.project_version(),
   description: 'Building blocks for protocol-heavy GLib code',
-  requires: ['glib-2.0', 'gobject-2.0', 'gio-2.0', 'json-glib-1.0'],
-  requires_private: ['gee-0.8'],
+  requires: ['glib-2.0', 'gobject-2.0', 'gio-2.0', 'gee-0.8', 'json-glib-1.0'],
   subdirs: f'efni-@api_version@',
 )
