@@ -46,11 +46,29 @@ efni = library('efni-' + api_version, efni_sources,
   install_dir: [true, header_install_dir, vapidir, girdir],
 )
 
+if build_typelib
+  custom_target('efni-typelib',
+    command: [
+      gir_compiler,
+      '--output', '@OUTPUT@',
+      '--includedir=' + girdir,
+      meson.current_build_dir() / efni_gir_name,
+    ],
+    output: f'Efni-@api_version@.typelib',
+    depends: efni,
+    install: true,
+    install_dir: typelibdir,
+  )
+endif
+
 efni_dep = declare_dependency(
   include_directories: include_directories('.'),
   link_with: efni,
   dependencies: [glib_dep, gobject_dep, gio_dep, gee_dep, json_glib_dep] + platform_deps,
-  variables: {'vapidir': local_vapidir},
+  variables: {
+    'vapidir': local_vapidir,
+    'girdir': meson.current_build_dir(),
+  },
 )
 
 meson.override_dependency(f'efni-@api_version@', efni_dep)
@@ -62,5 +80,6 @@ pkg.generate(efni,
   version: meson.project_version(),
   description: 'Building blocks for protocol-heavy GLib code',
   requires: ['glib-2.0', 'gobject-2.0', 'gio-2.0', 'gee-0.8', 'json-glib-1.0'],
+  variables: {'girdir': girdir},
   subdirs: f'efni-@api_version@',
 )
