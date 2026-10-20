@@ -28,8 +28,8 @@ if host_os == 'macos'
     'efni-darwin.c',
   ]
   efni_vala_args += [
-    '--pkg=darwin-gcd',
-    '--pkg=darwin-xpc',
+    '--pkg=efni-darwin-gcd',
+    '--pkg=efni-darwin-xpc',
   ]
   install_headers('efni-darwin.h', install_dir: header_install_dir)
 endif
