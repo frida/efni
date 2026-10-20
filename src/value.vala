@@ -11,6 +11,7 @@ namespace Efni {
 		public abstract unowned ObjectBuilder add_bool_value (bool val);
 		public abstract unowned ObjectBuilder add_int64_value (int64 val);
 		public abstract unowned ObjectBuilder add_uint64_value (uint64 val);
+		public abstract unowned ObjectBuilder add_double_value (double val);
 		public abstract unowned ObjectBuilder add_data_value (Bytes val);
 		public abstract unowned ObjectBuilder add_string_value (string val);
 		public abstract unowned ObjectBuilder add_uuid_value (uint8[] val);
@@ -33,6 +34,7 @@ namespace Efni {
 		public abstract uint16 get_uint16_value () throws Error;
 		public abstract int64 get_int64_value () throws Error;
 		public abstract uint64 get_uint64_value () throws Error;
+		public abstract double get_double_value () throws Error;
 		public abstract Bytes get_data_value () throws Error;
 		public abstract unowned string get_string_value () throws Error;
 		public abstract unowned string get_uuid_value () throws Error;
@@ -140,6 +142,10 @@ namespace Efni {
 			return peek_scope ().get_value (VariantType.UINT64).get_uint64 ();
 		}
 
+		public double get_double_value () throws Error {
+			return peek_scope ().get_value (VariantType.DOUBLE).get_double ();
+		}
+
 		public Bytes get_data_value () throws Error {
 			return peek_scope ().get_value (new VariantType.array (VariantType.BYTE)).get_data_as_bytes ();
 		}
@@ -242,6 +248,11 @@ namespace Efni {
 
 		public unowned ObjectBuilder add_uint64_value (uint64 val) {
 			builder.add_int_value ((int64) val);
+			return this;
+		}
+
+		public unowned ObjectBuilder add_double_value (double val) {
+			builder.add_double_value (val);
 			return this;
 		}
 
@@ -378,6 +389,13 @@ namespace Efni {
 			int64 v = get_int64_value ();
 			if (v < 0)
 				throw new Error.PROTOCOL ("Invalid uint64");
+			return v;
+		}
+
+		public double get_double_value () throws Error {
+			double v = reader.get_double_value ();
+			if (v == 0)
+				maybe_throw_value_access_error ();
 			return v;
 		}
 
