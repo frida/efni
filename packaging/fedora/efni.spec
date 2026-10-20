@@ -64,6 +64,7 @@ DESTDIR=%{buildroot} make install
 %{_libdir}/pkgconfig/efni-1.0.pc
 %{_datadir}/gir-1.0/Efni-1.0.gir
 %{_datadir}/vala/vapi/efni-1.0.vapi
+%{_datadir}/vala/vapi/efni-1.0.deps
 
 %changelog
 * Tue Oct 20 2026 Ole André Vadla Ravnås <oleavr@frida.re> - 1.0.0-1
