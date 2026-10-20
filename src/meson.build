@@ -31,6 +31,7 @@ if host_os == 'macos'
     '--pkg=darwin-gcd',
     '--pkg=darwin-xpc',
   ]
+  install_headers('efni-darwin.h', install_dir: header_install_dir)
 endif
 
 efni_gir_name = f'Efni-@api_version@.gir'
