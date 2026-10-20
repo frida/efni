@@ -51,7 +51,7 @@ if build_typelib
     command: [
       gir_compiler,
       '--output', '@OUTPUT@',
-      '--includedir=' + girdir,
+      '--includedir=' + gi_girdir,
       meson.current_build_dir() / efni_gir_name,
     ],
     output: f'Efni-@api_version@.typelib',
