@@ -51,6 +51,13 @@ configure_file(
   install_dir: vapidir,
 )
 
+vala_packages = []
+foreach pkg : efni_vapi_deps
+  if pkg != 'gee-0.8' or gee_dep.type_name() != 'internal'
+    vala_packages += pkg
+  endif
+endforeach
+
 efni_gir_name = f'Efni-@api_version@.gir'
 
 efni = library('efni-' + api_version, efni_sources,
@@ -87,6 +94,7 @@ efni_dep = declare_dependency(
   variables: {
     'vapidir': local_vapidir,
     'girdir': meson.current_build_dir(),
+    'vala_packages': ' '.join(vala_packages),
   },
 )
 
