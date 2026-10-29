@@ -28,9 +28,11 @@ namespace Efni {
 			CLOSED,
 		}
 
+#if MACOS
 		public static XpcClient make_for_mach_service (string name, Darwin.GCD.DispatchQueue queue) {
 			return new XpcClient (Darwin.Xpc.Connection.create_mach_service (name, queue, 0), queue);
 		}
+#endif
 
 		public XpcClient (Darwin.Xpc.Connection connection, Darwin.GCD.DispatchQueue queue) {
 			Object (connection: connection, queue: queue);

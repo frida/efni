@@ -1,8 +1,6 @@
 #ifndef __EFNI_DARWIN_H__
 #define __EFNI_DARWIN_H__
 
-#ifdef HAVE_MACOS
-
 #include <glib.h>
 #include <xpc/xpc.h>
 
@@ -20,7 +18,5 @@ gchar * _efni_xpc_object_to_string (xpc_object_t object);
 gboolean _efni_xpc_dictionary_apply (xpc_object_t dict, EfniXpcDictionaryApplier applier, gpointer user_data);
 
 G_END_DECLS
-
-#endif
 
 #endif
