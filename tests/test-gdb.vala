@@ -4,6 +4,16 @@ namespace Efni.GDBTest {
 			var h = new Harness ((h) => register_access_uses_thread_suffix.begin (h as Harness));
 			h.run ();
 		});
+
+		GLib.Test.add_func ("/GDB/ordered-predicate-receives-notification-like-reply", () => {
+			var h = new Harness ((h) => ordered_predicate_receives_notification_like_reply.begin (h as Harness));
+			h.run ();
+		});
+
+		GLib.Test.add_func ("/GDB/ordered-predicate-waits-for-its-turn", () => {
+			var h = new Harness ((h) => ordered_predicate_waits_for_its_turn.begin (h as Harness));
+			h.run ();
+		});
 	}
 
 	private async void register_access_uses_thread_suffix (Harness h) {
@@ -16,6 +26,87 @@ namespace Efni.GDBTest {
 			var thread = client.exception.thread;
 			var x0 = yield thread.read_register ("x0");
 			assert_true (x0 == 0);
+
+			yield client.close ();
+		} catch (GLib.Error e) {
+			printerr ("\nFAIL: %s\n", e.message);
+			assert_not_reached ();
+		} finally {
+			if (stub != null)
+				stub.stop ();
+		}
+
+		h.done ();
+	}
+
+	private async void ordered_predicate_receives_notification_like_reply (Harness h) {
+		FakeStub? stub = null;
+		try {
+			stub = yield FakeStub.open ();
+
+			var client = yield ThreadSuffixClient.open (stub.client_stream);
+			var exception_before = client.exception;
+
+			for (uint i = 0; i != 50; i++) {
+				var earlier_reply = ((i % 2) == 0)
+					? yield client.query_accepting_anything ("qC")
+					: yield client.query_simple ("qC", null);
+				assert_true (earlier_reply.payload == "QC1");
+			}
+
+			var reply = yield client.read_raw (0x1000, 4);
+			assert_true (reply.payload == "Tabc");
+			assert_true (client.state == STOPPED);
+			assert_true (client.exception == exception_before);
+
+			yield client.close ();
+		} catch (GLib.Error e) {
+			printerr ("\nFAIL: %s\n", e.message);
+			assert_not_reached ();
+		} finally {
+			if (stub != null)
+				stub.stop ();
+		}
+
+		h.done ();
+	}
+
+	private async void ordered_predicate_waits_for_its_turn (Harness h) {
+		FakeStub? stub = null;
+		try {
+			stub = yield FakeStub.open ();
+
+			var client = yield ThreadSuffixClient.open (stub.client_stream);
+
+			string? earlier_reply = null;
+			string? raw_reply = null;
+			GLib.Error? failure = null;
+			uint remaining = 2;
+
+			client.query_simple.begin ("qC", null, (obj, res) => {
+				try {
+					earlier_reply = client.query_simple.end (res).payload;
+				} catch (GLib.Error e) {
+					failure = e;
+				}
+				if (--remaining == 0)
+					ordered_predicate_waits_for_its_turn.callback ();
+			});
+			client.read_raw.begin (0x1000, 3, null, (obj, res) => {
+				try {
+					raw_reply = client.read_raw.end (res).payload;
+				} catch (GLib.Error e) {
+					failure = e;
+				}
+				if (--remaining == 0)
+					ordered_predicate_waits_for_its_turn.callback ();
+			});
+			yield;
+
+			if (failure != null)
+				throw failure;
+			assert_true (earlier_reply == "QC1");
+			assert_true (raw_reply == "Tab");
 
 			yield client.close ();
 		} catch (GLib.Error e) {
@@ -110,6 +201,8 @@ namespace Efni.GDBTest {
 				return "OK";
 			if (request[0] == 'p')
 				return is_thread_suffixed (request) ? "0000000000000000" : "E03";
+			if (request[0] == 'x')
+				return "Tabc".substring (0, (long) uint64.parse (request.split (",")[1], 16));
 			return "";
 		}
 
@@ -181,6 +274,25 @@ namespace Efni.GDBTest {
 				throw_api_error (e);
 			}
 			return client;
+		}
+
+		public async Packet read_raw (uint64 address, size_t size, Cancellable? cancellable = null) throws Error, IOError {
+			var request = make_packet_builder_sized (16)
+				.append_c ('x')
+				.append_address (address)
+				.append_c (',')
+				.append_size (size)
+				.build ();
+			return yield query_with_ordered_predicate (request,
+				packet => (packet.payload_bytes.get_size () == size) ? ResponseAction.COMPLETE : ResponseAction.KEEP_TRYING,
+				cancellable);
+		}
+
+		public async Packet query_accepting_anything (string request, Cancellable? cancellable = null) throws Error, IOError {
+			var packet = make_packet_builder_sized (request.length)
+				.append (request)
+				.build ();
+			return yield query_with_predicate (packet, p => ResponseAction.COMPLETE, cancellable);
 		}
 
 		protected override async void detect_vendor_features (Cancellable? cancellable) throws Efni.Error, IOError {

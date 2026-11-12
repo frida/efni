@@ -1162,10 +1162,21 @@ namespace Efni.GDB {
 
 		public async Packet query_with_predicate (Bytes request, owned ResponsePredicate? predicate, Cancellable? cancellable)
 				throws Error, IOError {
+			return yield perform_query (request, (owned) predicate, false, cancellable);
+		}
+
+		public async Packet query_with_ordered_predicate (Bytes request, owned ResponsePredicate predicate,
+				Cancellable? cancellable) throws Error, IOError {
+			return yield perform_query (request, (owned) predicate, true, cancellable);
+		}
+
+		private async Packet perform_query (Bytes request, owned ResponsePredicate? predicate, bool ordered,
+				Cancellable? cancellable) throws Error, IOError {
 			if (state == CLOSED)
 				throw new Error.INVALID_OPERATION ("Unable to perform query; connection is closed");
 
-			var pending = new PendingResponse ((owned) predicate, query_with_predicate.callback);
+			var pending = new PendingResponse ((owned) predicate, perform_query.callback);
+			pending.ordered = ordered;
 			pending.deadline = get_monotonic_time () + (QUERY_TIMEOUT_SECONDS * 1000000);
 			pending_responses.offer (pending);
 			start_stall_watchdog ();
@@ -1288,6 +1299,8 @@ namespace Efni.GDB {
 			PendingResponse? pr = pending_responses.first_match (pr => {
 				if (pr.predicate == null)
 					return false;
+				if (pr.ordered && !is_next_to_be_answered (pr))
+					return false;
 				action = pr.predicate (packet);
 				return action != KEEP_TRYING;
 			});
@@ -1302,6 +1315,12 @@ namespace Efni.GDB {
 
 			pr.complete_with_response (packet);
 			return true;
+		}
+
+		private bool is_next_to_be_answered (PendingResponse pr) {
+			foreach (var oldest in pending_responses)
+				return oldest == pr && pr.unsent_request == null;
+			return false;
 		}
 
 		private void handle_wildcard_response (Packet response) throws Error {
@@ -1687,6 +1706,7 @@ namespace Efni.GDB {
 
 		private class PendingResponse {
 			public ResponsePredicate? predicate;
+			public bool ordered = false;
 			public Bytes? unsent_request;
 			public int64 deadline;
 
