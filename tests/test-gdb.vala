@@ -14,6 +14,11 @@ namespace Efni.GDBTest {
 			var h = new Harness ((h) => ordered_predicate_waits_for_its_turn.begin (h as Harness));
 			h.run ();
 		});
+
+		GLib.Test.add_func ("/GDB/stop-overtaken-by-resume-is-dropped", () => {
+			var h = new Harness ((h) => stop_overtaken_by_resume_is_dropped.begin (h as Harness));
+			h.run ();
+		});
 	}
 
 	private async void register_access_uses_thread_suffix (Harness h) {
@@ -120,13 +125,55 @@ namespace Efni.GDBTest {
 		h.done ();
 	}
 
+	private async void stop_overtaken_by_resume_is_dropped (Harness h) {
+		FakeStub? stub = null;
+		try {
+			stub = yield FakeStub.open ();
+
+			var client = yield ThreadSuffixClient.open (stub.client_stream);
+
+			stub.defer_thread_info_until_resumed = true;
+			ulong handler = stub.thread_info_requested.connect (() => stop_overtaken_by_resume_is_dropped.callback ());
+			yield stub.send_stop ();
+			yield;
+			stub.disconnect (handler);
+
+			yield client.resume ();
+			var reply = yield client.query_simple ("qC", null);
+			assert_true (reply.payload == "QC1");
+			yield h.process_events ();
+
+			assert_true (client.state == RUNNING);
+
+			yield client.close ();
+		} catch (GLib.Error e) {
+			printerr ("\nFAIL: %s\n", e.message);
+			assert_not_reached ();
+		} finally {
+			if (stub != null)
+				stub.stop ();
+		}
+
+		h.done ();
+	}
+
 	private class FakeStub : Object {
 		public IOStream client_stream {
 			get;
 			private set;
 		}
 
+		public bool defer_thread_info_until_resumed {
+			get;
+			set;
+			default = false;
+		}
+
+		public signal void thread_info_requested ();
+
 		private SocketService service;
+		private OutputStream? output;
+		private bool thread_info_deferred = false;
 		private Cancellable cancellable = new Cancellable ();
 
 		private const string TARGET_XML =
@@ -173,13 +220,32 @@ namespace Efni.GDBTest {
 			service.stop ();
 		}
 
+		public async void send_stop () throws GLib.Error {
+			yield write_packet (output, "T02thread:1;");
+		}
+
 		private async void serve (IOStream connection) {
 			var input = connection.get_input_stream ();
-			var output = connection.get_output_stream ();
+			output = connection.get_output_stream ();
 			try {
 				string? request;
 				while ((request = yield read_packet (input)) != null) {
 					yield write_ack (output);
+
+					if (request == "c") {
+						if (thread_info_deferred) {
+							thread_info_deferred = false;
+							yield write_packet (output, "");
+						}
+						continue;
+					}
+
+					if (request.has_prefix ("qThreadExtraInfo,") && defer_thread_info_until_resumed) {
+						thread_info_deferred = true;
+						thread_info_requested ();
+						continue;
+					}
+
 					yield write_packet (output, compute_reply (request));
 				}
 			} catch (GLib.Error e) {

@@ -89,9 +89,10 @@ namespace Efni.GDB {
 		private Gee.Queue<Bytes> pending_writes = new Gee.ArrayQueue<Bytes> ();
 		private Promise<uint>? write_request;
 		private Gee.Queue<PendingResponse> pending_responses = new Gee.ArrayQueue<PendingResponse> ();
-		private Gee.Queue<string> pending_stops = new Gee.ArrayQueue<string> ();
+		private Gee.Queue<PendingStop> pending_stops = new Gee.ArrayQueue<PendingStop> ();
 		private bool awaiting_response = false;
 		private bool handling_stops = false;
+		private uint resumptions = 0;
 
 		protected Gee.Set<string> supported_features = new Gee.HashSet<string> ();
 		protected Gee.List<Register>? registers;
@@ -287,6 +288,9 @@ namespace Efni.GDB {
 		}
 
 		private void change_state (DebuggerState new_state, DebuggerException? new_exception = null) {
+			if (new_state == RUNNING)
+				resumptions++;
+
 			bool state_differs = new_state != _state;
 			if (state_differs)
 				_state = new_state;
@@ -1367,7 +1371,7 @@ namespace Efni.GDB {
 				case NOTIFICATION_TYPE_STOP_WITH_PROPERTIES:
 					if (!stop_notifications_accepted)
 						return true;
-					pending_stops.offer (data);
+					pending_stops.offer (new PendingStop (data, resumptions));
 					if (!handling_stops)
 						handle_pending_stops.begin ();
 					return true;
@@ -1396,7 +1400,8 @@ namespace Efni.GDB {
 			}
 		}
 
-		private async void handle_stop (string data) throws Error, IOError {
+		private async void handle_stop (PendingStop stop) throws Error, IOError {
+			unowned string data = stop.data;
 			if (data.length < 2)
 				throw new Error.PROTOCOL ("Invalid stop packet");
 
@@ -1414,6 +1419,9 @@ namespace Efni.GDB {
 			DebuggerException exception;
 			Breakpoint? breakpoint;
 			yield parse_stop (signum, properties, out exception, out breakpoint);
+
+			if (stop.resumptions != resumptions)
+				return;
 
 			breakpoint_exception = (breakpoint != null) ? exception : null;
 			change_state (STOPPED, exception);
@@ -1702,6 +1710,16 @@ namespace Efni.GDB {
 			COMPLETE,
 			ABSORB,
 			KEEP_TRYING
+		}
+
+		private class PendingStop {
+			public string data;
+			public uint resumptions;
+
+			public PendingStop (string data, uint resumptions) {
+				this.data = data;
+				this.resumptions = resumptions;
+			}
 		}
 
 		private class PendingResponse {
