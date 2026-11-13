@@ -590,7 +590,7 @@ namespace Efni.GDB {
 			return new Bytes.take ((owned) result);
 		}
 
-		public async void write_byte_array (uint64 address, Bytes bytes, Cancellable? cancellable = null)
+		public virtual async void write_byte_array (uint64 address, Bytes bytes, Cancellable? cancellable = null)
 				throws Error, IOError {
 			size_t header_size = 1 + 16 + 1 + 8 + 1 + Packet.OVERHEAD;
 			size_t budget = max_packet_size - header_size;
@@ -745,7 +745,7 @@ namespace Efni.GDB {
 				breakpoint_exception = null;
 		}
 
-		public async void set_physical_memory_mode (bool enabled, Cancellable? cancellable = null)
+		public virtual async void set_physical_memory_mode (bool enabled, Cancellable? cancellable = null)
 				throws Error, IOError {
 			string val = enabled ? "1" : "0";
 			if ("qemu-phy-mem-mode" in supported_features)
